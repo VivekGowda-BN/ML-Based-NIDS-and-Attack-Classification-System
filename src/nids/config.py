@@ -41,6 +41,16 @@ RAW_TEST_PATH: Path = RAW_DIR / RAW_TEST_FILE
 MANIFEST_PATH: Path = RAW_DIR / "manifest.json"
 DATA_PROFILE_PATH: Path = REPORTS_DIR / "data_profile.md"
 
+# ─── Cleaned interim paths ───────────────────────────────────────────────────
+CLEAN_TRAIN_PARQUET: Path = INTERIM_DIR / "UNSW_NB15_training_clean.parquet"
+CLEAN_TEST_PARQUET: Path = INTERIM_DIR / "UNSW_NB15_testing_clean.parquet"
+CLEANING_SUMMARY_JSON: Path = REPORTS_DIR / "cleaning_summary.json"
+CLEANING_REPORT_MD: Path = REPORTS_DIR / "cleaning_report.md"
+
+# ─── Column definitions ───────────────────────────────────────────────────────
+ID_COLUMN: str = "id"
+NON_FEATURE_COLUMNS: list[str] = [ID_COLUMN, "attack_cat", "label"]
+
 UNSW_NB15_FILES: list[str] = [
     RAW_TRAIN_FILE,
     RAW_TEST_FILE,

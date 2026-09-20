@@ -1,0 +1,311 @@
+{
+  "project": "ML-Based-NIDS-and-Attack-Classification-System",
+  "dataset": "UNSW-NB15",
+  "phase": "cleaning",
+  "mode": 1,
+  "timestamp": "2026-09-20T21:34:11.209181",
+  "model_features_count": 42,
+  "model_features": [
+    "dur",
+    "proto",
+    "service",
+    "state",
+    "spkts",
+    "dpkts",
+    "sbytes",
+    "dbytes",
+    "rate",
+    "sttl",
+    "dttl",
+    "sload",
+    "dload",
+    "sloss",
+    "dloss",
+    "sinpkt",
+    "dinpkt",
+    "sjit",
+    "djit",
+    "swin",
+    "stcpb",
+    "dtcpb",
+    "dwin",
+    "tcprtt",
+    "synack",
+    "ackdat",
+    "smean",
+    "dmean",
+    "trans_depth",
+    "response_body_len",
+    "ct_srv_src",
+    "ct_state_ttl",
+    "ct_dst_ltm",
+    "ct_src_dport_ltm",
+    "ct_dst_sport_ltm",
+    "ct_dst_src_ltm",
+    "is_ftp_login",
+    "ct_ftp_cmd",
+    "ct_flw_http_mthd",
+    "ct_src_ltm",
+    "ct_srv_dst",
+    "is_sm_ips_ports"
+  ],
+  "excluded_columns": [
+    "id",
+    "attack_cat",
+    "label"
+  ],
+  "training_split": {
+    "before": {
+      "row_count": 175341,
+      "column_count": 45,
+      "total_missing_values": 0,
+      "missing_values_by_column": {},
+      "total_infinite_values": 0,
+      "infinite_values_by_column": {},
+      "exact_duplicate_rows": 0,
+      "binary_label_distribution": {
+        "1": {
+          "count": 119341,
+          "percentage": 68.062
+        },
+        "0": {
+          "count": 56000,
+          "percentage": 31.938
+        }
+      },
+      "attack_category_distribution": {
+        "Normal": {
+          "count": 56000,
+          "percentage": 31.938
+        },
+        "Generic": {
+          "count": 40000,
+          "percentage": 22.813
+        },
+        "Exploits": {
+          "count": 33393,
+          "percentage": 19.045
+        },
+        "Fuzzers": {
+          "count": 18184,
+          "percentage": 10.371
+        },
+        "DoS": {
+          "count": 12264,
+          "percentage": 6.994
+        },
+        "Reconnaissance": {
+          "count": 10491,
+          "percentage": 5.983
+        },
+        "Analysis": {
+          "count": 2000,
+          "percentage": 1.141
+        },
+        "Backdoor": {
+          "count": 1746,
+          "percentage": 0.996
+        },
+        "Shellcode": {
+          "count": 1133,
+          "percentage": 0.646
+        },
+        "Worms": {
+          "count": 130,
+          "percentage": 0.074
+        }
+      }
+    },
+    "after": {
+      "row_count": 175341,
+      "column_count": 45,
+      "total_missing_values": 0,
+      "missing_values_by_column": {},
+      "total_infinite_values": 0,
+      "infinite_values_by_column": {},
+      "exact_duplicate_rows": 0,
+      "binary_label_distribution": {
+        "1": {
+          "count": 119341,
+          "percentage": 68.062
+        },
+        "0": {
+          "count": 56000,
+          "percentage": 31.938
+        }
+      },
+      "attack_category_distribution": {
+        "Normal": {
+          "count": 56000,
+          "percentage": 31.938
+        },
+        "Generic": {
+          "count": 40000,
+          "percentage": 22.813
+        },
+        "Exploits": {
+          "count": 33393,
+          "percentage": 19.045
+        },
+        "Fuzzers": {
+          "count": 18184,
+          "percentage": 10.371
+        },
+        "DoS": {
+          "count": 12264,
+          "percentage": 6.994
+        },
+        "Reconnaissance": {
+          "count": 10491,
+          "percentage": 5.983
+        },
+        "Analysis": {
+          "count": 2000,
+          "percentage": 1.141
+        },
+        "Backdoor": {
+          "count": 1746,
+          "percentage": 0.996
+        },
+        "Shellcode": {
+          "count": 1133,
+          "percentage": 0.646
+        },
+        "Worms": {
+          "count": 130,
+          "percentage": 0.074
+        }
+      }
+    }
+  },
+  "testing_split": {
+    "before": {
+      "row_count": 82332,
+      "column_count": 45,
+      "total_missing_values": 0,
+      "missing_values_by_column": {},
+      "total_infinite_values": 0,
+      "infinite_values_by_column": {},
+      "exact_duplicate_rows": 0,
+      "binary_label_distribution": {
+        "1": {
+          "count": 45332,
+          "percentage": 55.06
+        },
+        "0": {
+          "count": 37000,
+          "percentage": 44.94
+        }
+      },
+      "attack_category_distribution": {
+        "Normal": {
+          "count": 37000,
+          "percentage": 44.94
+        },
+        "Generic": {
+          "count": 18871,
+          "percentage": 22.921
+        },
+        "Exploits": {
+          "count": 11132,
+          "percentage": 13.521
+        },
+        "Fuzzers": {
+          "count": 6062,
+          "percentage": 7.363
+        },
+        "DoS": {
+          "count": 4089,
+          "percentage": 4.966
+        },
+        "Reconnaissance": {
+          "count": 3496,
+          "percentage": 4.246
+        },
+        "Analysis": {
+          "count": 677,
+          "percentage": 0.822
+        },
+        "Backdoor": {
+          "count": 583,
+          "percentage": 0.708
+        },
+        "Shellcode": {
+          "count": 378,
+          "percentage": 0.459
+        },
+        "Worms": {
+          "count": 44,
+          "percentage": 0.053
+        }
+      }
+    },
+    "after": {
+      "row_count": 82332,
+      "column_count": 45,
+      "total_missing_values": 0,
+      "missing_values_by_column": {},
+      "total_infinite_values": 0,
+      "infinite_values_by_column": {},
+      "exact_duplicate_rows": 0,
+      "binary_label_distribution": {
+        "1": {
+          "count": 45332,
+          "percentage": 55.06
+        },
+        "0": {
+          "count": 37000,
+          "percentage": 44.94
+        }
+      },
+      "attack_category_distribution": {
+        "Normal": {
+          "count": 37000,
+          "percentage": 44.94
+        },
+        "Generic": {
+          "count": 18871,
+          "percentage": 22.921
+        },
+        "Exploits": {
+          "count": 11132,
+          "percentage": 13.521
+        },
+        "Fuzzers": {
+          "count": 6062,
+          "percentage": 7.363
+        },
+        "DoS": {
+          "count": 4089,
+          "percentage": 4.966
+        },
+        "Reconnaissance": {
+          "count": 3496,
+          "percentage": 4.246
+        },
+        "Analysis": {
+          "count": 677,
+          "percentage": 0.822
+        },
+        "Backdoor": {
+          "count": 583,
+          "percentage": 0.708
+        },
+        "Shellcode": {
+          "count": 378,
+          "percentage": 0.459
+        },
+        "Worms": {
+          "count": 44,
+          "percentage": 0.053
+        }
+      }
+    }
+  },
+  "artifacts": {
+    "clean_train_parquet": "C:\\Users\\vivek\\OneDrive\\Desktop\\College\\Year 2\\DS\\NIDS - Mini Project\\data\\interim\\UNSW_NB15_training_clean.parquet",
+    "clean_test_parquet": "C:\\Users\\vivek\\OneDrive\\Desktop\\College\\Year 2\\DS\\NIDS - Mini Project\\data\\interim\\UNSW_NB15_testing_clean.parquet",
+    "summary_json": "C:\\Users\\vivek\\OneDrive\\Desktop\\College\\Year 2\\DS\\NIDS - Mini Project\\reports\\cleaning_summary.json",
+    "report_md": "C:\\Users\\vivek\\OneDrive\\Desktop\\College\\Year 2\\DS\\NIDS - Mini Project\\reports\\cleaning_report.md"
+  }
+}
