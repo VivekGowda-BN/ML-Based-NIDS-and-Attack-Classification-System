@@ -19,6 +19,7 @@ RAW_DIR: Path = DATA_DIR / "raw"
 INTERIM_DIR: Path = DATA_DIR / "interim"
 PROCESSED_DIR: Path = DATA_DIR / "processed"
 SCENARIOS_DIR: Path = DATA_DIR / "scenarios"
+FEATURE_NAMES_JSON: Path = PROCESSED_DIR / "feature_names.json"
 
 # ─── Model paths ──────────────────────────────────────────────────────────────
 MODELS_DIR: Path = ROOT_DIR / "models"
@@ -26,12 +27,15 @@ BINARY_CLF_PATH: Path = MODELS_DIR / "binary_clf.joblib"
 MULTI_CLF_PATH: Path = MODELS_DIR / "multi_clf.joblib"
 SCALER_PATH: Path = MODELS_DIR / "scaler.joblib"
 LABEL_ENCODER_PATH: Path = MODELS_DIR / "label_encoder.joblib"
-
+PREPROCESSOR_SCALED_PATH: Path = MODELS_DIR / "preprocessor_scaled.joblib"
+PREPROCESSOR_UNSCALED_PATH: Path = MODELS_DIR / "preprocessor_unscaled.joblib"
 # ─── Report paths ─────────────────────────────────────────────────────────────
 REPORTS_DIR: Path = ROOT_DIR / "reports"
 FIGURES_DIR: Path = REPORTS_DIR / "figures"
 METRICS_DIR: Path = REPORTS_DIR / "metrics"
 EXPLANATIONS_DIR: Path = REPORTS_DIR / "explanations"
+PREPROCESSING_SUMMARY_JSON: Path = REPORTS_DIR / "preprocessing_summary.json"
+PREPROCESSING_REPORT_MD: Path = REPORTS_DIR / "preprocessing_report.md"
 
 # ─── UNSW-NB15 raw file paths ─────────────────────────────────────────────────
 RAW_TRAIN_FILE: str = "UNSW_NB15_training-set.csv"
