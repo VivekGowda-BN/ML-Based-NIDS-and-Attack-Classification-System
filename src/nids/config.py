@@ -46,6 +46,7 @@ CLEAN_TRAIN_PARQUET: Path = INTERIM_DIR / "UNSW_NB15_training_clean.parquet"
 CLEAN_TEST_PARQUET: Path = INTERIM_DIR / "UNSW_NB15_testing_clean.parquet"
 CLEANING_SUMMARY_JSON: Path = REPORTS_DIR / "cleaning_summary.json"
 CLEANING_REPORT_MD: Path = REPORTS_DIR / "cleaning_report.md"
+EDA_REPORT_MD: Path = REPORTS_DIR / "eda_report.md"
 
 # ─── Column definitions ───────────────────────────────────────────────────────
 ID_COLUMN: str = "id"
