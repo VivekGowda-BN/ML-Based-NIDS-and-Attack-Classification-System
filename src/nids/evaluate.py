@@ -48,6 +48,7 @@ from sklearn.metrics import (
     classification_report,
     confusion_matrix,
     f1_score,
+    log_loss,
     precision_recall_curve,
     precision_score,
     recall_score,
@@ -66,7 +67,16 @@ try:
         BINARY_RF_PATH,
         BINARY_XGB_PATH,
         FIGURES_DIR,
+        LABEL_ENCODER_PATH,
         METRICS_DIR,
+        MULTICLASS_BEST_MODEL_JSON,
+        MULTICLASS_BEST_MODEL_PATH,
+        MULTICLASS_COMPARISON_CSV,
+        MULTICLASS_LR_PATH,
+        MULTICLASS_RESULTS_JSON,
+        MULTICLASS_RF_PATH,
+        MULTICLASS_XGB_PATH,
+        MULTI_CLF_PATH,
         PROCESSED_DIR,
     )
     from nids.preprocessing import load_splits
@@ -81,7 +91,16 @@ except ImportError:
         BINARY_RF_PATH,
         BINARY_XGB_PATH,
         FIGURES_DIR,
+        LABEL_ENCODER_PATH,
         METRICS_DIR,
+        MULTICLASS_BEST_MODEL_JSON,
+        MULTICLASS_BEST_MODEL_PATH,
+        MULTICLASS_COMPARISON_CSV,
+        MULTICLASS_LR_PATH,
+        MULTICLASS_RESULTS_JSON,
+        MULTICLASS_RF_PATH,
+        MULTICLASS_XGB_PATH,
+        MULTI_CLF_PATH,
         PROCESSED_DIR,
     )
     from src.nids.preprocessing import load_splits
@@ -466,6 +485,422 @@ def evaluate_binary_models(
     return full_output
 
 
+# ─── Multiclass evaluation ────────────────────────────────────────────────
+
+MULTICLASS_META_PATH = METRICS_DIR / "multiclass_training_meta.json"
+RARE_CLASSES = ["Analysis", "Backdoor", "Shellcode", "Worms"]
+
+
+def evaluate_multiclass_single_model(
+    name: str,
+    model: object,
+    X_test: np.ndarray,
+    y_test: np.ndarray,
+    class_names: List[str],
+    training_time: float = 0.0,
+) -> Dict[str, Any]:
+    """
+    Compute comprehensive multiclass metrics for a single model.
+    """
+    n_samples = len(y_test)
+    n_classes = len(class_names)
+
+    # Inference timing
+    t0 = time.perf_counter()
+    y_pred_proba = model.predict_proba(X_test)  # shape (n_samples, n_classes)
+    inference_time = time.perf_counter() - t0
+    per_sample_us = (inference_time / n_samples) * 1e6 if n_samples > 0 else 0.0
+
+    y_pred = np.argmax(y_pred_proba, axis=1)
+
+    # Aggregate metrics
+    acc = float(np.mean(y_pred == y_test))
+    bal_acc = float(balanced_accuracy_score(y_test, y_pred))
+    macro_prec = float(precision_score(y_test, y_pred, average="macro", zero_division=0))
+    macro_rec = float(recall_score(y_test, y_pred, average="macro", zero_division=0))
+    macro_f1 = float(f1_score(y_test, y_pred, average="macro", zero_division=0))
+    weighted_prec = float(precision_score(y_test, y_pred, average="weighted", zero_division=0))
+    weighted_rec = float(recall_score(y_test, y_pred, average="weighted", zero_division=0))
+    weighted_f1 = float(f1_score(y_test, y_pred, average="weighted", zero_division=0))
+
+    # Log loss
+    try:
+        logloss = float(log_loss(y_test, y_pred_proba, labels=list(range(n_classes))))
+    except Exception:
+        logloss = None
+
+    # ROC-AUC (OvR macro)
+    try:
+        roc_auc = float(
+            roc_auc_score(y_test, y_pred_proba, multi_class="ovr", average="macro", labels=list(range(n_classes)))
+        )
+    except Exception:
+        roc_auc = None
+
+    # Per-class metrics
+    per_class_prec = precision_score(y_test, y_pred, average=None, zero_division=0, labels=list(range(n_classes)))
+    per_class_rec = recall_score(y_test, y_pred, average=None, zero_division=0, labels=list(range(n_classes)))
+    per_class_f1 = f1_score(y_test, y_pred, average=None, zero_division=0, labels=list(range(n_classes)))
+
+    per_class = {}
+    for i, cls in enumerate(class_names):
+        per_class[cls] = {
+            "precision": round(float(per_class_prec[i]), 4),
+            "recall": round(float(per_class_rec[i]), 4),
+            "f1": round(float(per_class_f1[i]), 4),
+            "support": int(np.sum(y_test == i)),
+        }
+
+    # Confusion matrix
+    cm = confusion_matrix(y_test, y_pred, labels=list(range(n_classes)))
+
+    return {
+        "model_name": name,
+        "training_time_sec": round(training_time, 3),
+        "inference_time_sec": round(inference_time, 3),
+        "per_sample_latency_us": round(per_sample_us, 2),
+        "metrics": {
+            "accuracy": round(acc, 4),
+            "balanced_accuracy": round(bal_acc, 4),
+            "macro_precision": round(macro_prec, 4),
+            "macro_recall": round(macro_rec, 4),
+            "macro_f1": round(macro_f1, 4),
+            "weighted_precision": round(weighted_prec, 4),
+            "weighted_recall": round(weighted_rec, 4),
+            "weighted_f1": round(weighted_f1, 4),
+            "roc_auc_ovr_macro": round(roc_auc, 4) if roc_auc is not None else None,
+            "log_loss": round(logloss, 4) if logloss is not None else None,
+        },
+        "per_class_metrics": per_class,
+        "confusion_matrix": cm.tolist(),
+        "raw_predictions": {
+            "y_pred": y_pred,
+            "y_pred_proba": y_pred_proba,
+        },
+    }
+
+
+def save_multiclass_confusion_matrix(
+    cm: np.ndarray,
+    class_names: List[str],
+    title: str,
+    output_path: Path,
+) -> Path:
+    """Save an annotated 10x10 confusion matrix heatmap."""
+    fig, ax = plt.subplots(figsize=(14, 12))
+    sns.heatmap(
+        cm,
+        annot=True,
+        fmt=",d",
+        cmap="Blues",
+        xticklabels=class_names,
+        yticklabels=class_names,
+        ax=ax,
+        linewidths=0.4,
+        linecolor="#e5e7eb",
+    )
+    ax.set_title(title, fontsize=13, fontweight="bold", pad=14)
+    ax.set_xlabel("Predicted Class", fontsize=11)
+    ax.set_ylabel("True Class", fontsize=11)
+    plt.xticks(rotation=45, ha="right", fontsize=9)
+    plt.yticks(rotation=0, fontsize=9)
+    plt.tight_layout()
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    plt.savefig(output_path, dpi=200, bbox_inches="tight")
+    plt.close(fig)
+    return output_path
+
+
+def save_multiclass_comparison_chart(
+    models_data: Dict[str, Dict[str, Any]],
+    output_path: Path,
+) -> Path:
+    """Save comparative macro metric bar chart."""
+    metrics_keys = ["macro_f1", "macro_recall", "macro_precision", "balanced_accuracy", "weighted_f1"]
+    metric_labels = ["Macro F1", "Macro Recall", "Macro Precision", "Balanced Accuracy", "Weighted F1"]
+    display_names = {
+        "logistic_regression": "Logistic Regression",
+        "random_forest": "Random Forest",
+        "xgboost": "XGBoost",
+    }
+
+    records = []
+    for key, data in models_data.items():
+        row = {"Model": display_names.get(key, key)}
+        m = data["metrics"]
+        for mk in metrics_keys:
+            row[mk] = m.get(mk, 0.0) or 0.0
+        records.append(row)
+
+    df_comp = pd.DataFrame(records).set_index("Model")
+    df_comp.columns = metric_labels
+
+    fig, ax = plt.subplots(figsize=(11, 5))
+    df_comp.plot(kind="bar", ax=ax, width=0.75)
+    ax.set_title("Multiclass Attack Classification — Model Comparison", fontsize=13, fontweight="bold")
+    ax.set_ylabel("Score", fontsize=11)
+    ax.set_ylim(0.0, 1.05)
+    ax.grid(axis="y", linestyle="--", alpha=0.5)
+    ax.legend(loc="lower right", fontsize=9)
+    plt.xticks(rotation=0)
+    plt.tight_layout()
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    plt.savefig(output_path, dpi=200, bbox_inches="tight")
+    plt.close(fig)
+    return output_path
+
+
+def save_multiclass_per_class_f1_chart(
+    models_data: Dict[str, Dict[str, Any]],
+    class_names: List[str],
+    output_path: Path,
+) -> Path:
+    """Save per-class F1 comparison chart highlighting rare classes."""
+    display_names = {
+        "logistic_regression": "Logistic Regression",
+        "random_forest": "Random Forest",
+        "xgboost": "XGBoost",
+    }
+    colors = {"logistic_regression": "#2563eb", "random_forest": "#10b981", "xgboost": "#f59e0b"}
+
+    x = np.arange(len(class_names))
+    width = 0.25
+    fig, ax = plt.subplots(figsize=(15, 6))
+
+    for i, (key, data) in enumerate(models_data.items()):
+        f1_values = [data["per_class_metrics"][cls]["f1"] for cls in class_names]
+        bars = ax.bar(
+            x + i * width,
+            f1_values,
+            width,
+            label=display_names.get(key, key),
+            color=colors.get(key, "#4b5563"),
+            alpha=0.85,
+        )
+
+    # Highlight rare classes
+    for i, cls in enumerate(class_names):
+        if cls in RARE_CLASSES:
+            ax.axvspan(i - 0.3, i + 0.85, alpha=0.07, color="red")
+
+    ax.set_title("Per-Class F1 Score by Model (rare classes highlighted in red)", fontsize=13, fontweight="bold")
+    ax.set_xlabel("Attack Category", fontsize=11)
+    ax.set_ylabel("F1 Score", fontsize=11)
+    ax.set_xticks(x + width)
+    ax.set_xticklabels(class_names, rotation=35, ha="right", fontsize=10)
+    ax.set_ylim(0.0, 1.05)
+    ax.grid(axis="y", linestyle="--", alpha=0.5)
+    ax.legend(fontsize=10)
+    plt.tight_layout()
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    plt.savefig(output_path, dpi=200, bbox_inches="tight")
+    plt.close(fig)
+    return output_path
+
+
+def select_best_multiclass_model(
+    models_data: Dict[str, Dict[str, Any]],
+    class_names: List[str],
+) -> Tuple[str, Dict[str, Any]]:
+    """
+    Select the best multiclass model based on:
+    1. Macro F1 (primary)
+    2. Macro Recall
+    3. Mean rare-class recall (Analysis, Backdoor, Shellcode, Worms)
+    4. Balanced Accuracy
+    """
+    scores = {}
+    for key, data in models_data.items():
+        m = data["metrics"]
+        rare_recalls = []
+        for cls in RARE_CLASSES:
+            if cls in data["per_class_metrics"]:
+                rare_recalls.append(data["per_class_metrics"][cls]["recall"])
+        mean_rare_recall = float(np.mean(rare_recalls)) if rare_recalls else 0.0
+        composite = (
+            (m.get("macro_f1") or 0.0) * 0.40
+            + (m.get("macro_recall") or 0.0) * 0.25
+            + mean_rare_recall * 0.25
+            + (m.get("balanced_accuracy") or 0.0) * 0.10
+        )
+        scores[key] = composite
+        logger.info(
+            "Model %s composite=%.4f (macro_f1=%.4f, macro_rec=%.4f, rare_rec=%.4f, bal_acc=%.4f)",
+            key, composite, m.get("macro_f1", 0), m.get("macro_recall", 0),
+            mean_rare_recall, m.get("balanced_accuracy", 0),
+        )
+
+    best_key = max(scores, key=scores.get)
+    best_data = models_data[best_key]
+
+    rare_class_detail = {}
+    for cls in RARE_CLASSES:
+        if cls in best_data["per_class_metrics"]:
+            rare_class_detail[cls] = best_data["per_class_metrics"][cls]
+
+    selection_rationale = {
+        "selected_model": best_key,
+        "selection_criteria": (
+            "Composite: Macro F1 (40%) + Macro Recall (25%) + "
+            "Mean Rare-Class Recall (25%) + Balanced Accuracy (10%)"
+        ),
+        "composite_scores": {k: round(v, 4) for k, v in scores.items()},
+        "winning_metrics": best_data["metrics"],
+        "rare_class_metrics": rare_class_detail,
+        "training_time_sec": best_data["training_time_sec"],
+        "per_sample_latency_us": best_data["per_sample_latency_us"],
+    }
+    return best_key, selection_rationale
+
+
+def evaluate_multiclass_models(
+    splits: Optional[Dict[str, Any]] = None,
+    save_artifacts: bool = True,
+) -> Dict[str, Any]:
+    """
+    Evaluate all three multiclass models on the untouched test split.
+    Persists reports, confusion matrices, and comparison figures.
+    """
+    if splits is None:
+        logger.info("Loading preprocessed test data from %s...", PROCESSED_DIR)
+        splits = load_splits(PROCESSED_DIR)
+
+    X_test_scaled = splits["X_test_scaled"]
+    X_test_unscaled = splits["X_test_unscaled"]
+    y_test = splits["y_multi_test"]
+
+    # Load label encoder to get class names
+    le = joblib.load(LABEL_ENCODER_PATH)
+    class_names: List[str] = list(le.classes_)
+    logger.info("Loaded label encoder. Classes: %s", class_names)
+
+    # Load training metadata if available
+    train_meta: Dict[str, Any] = {}
+    if MULTICLASS_META_PATH.exists():
+        with open(MULTICLASS_META_PATH, "r", encoding="utf-8") as f:
+            train_meta = json.load(f)
+
+    def _get_train_time(mname: str) -> float:
+        return train_meta.get("models", {}).get(mname, {}).get("training_time_seconds", 0.0)
+
+    # 1. Evaluate Logistic Regression (scaled)
+    logger.info("Evaluating Multiclass Logistic Regression on X_test_scaled...")
+    lr_model = joblib.load(MULTICLASS_LR_PATH)
+    lr_eval = evaluate_multiclass_single_model(
+        "logistic_regression", lr_model, X_test_scaled, y_test, class_names, _get_train_time("logistic_regression")
+    )
+
+    # 2. Evaluate Random Forest (unscaled)
+    logger.info("Evaluating Multiclass Random Forest on X_test_unscaled...")
+    rf_model = joblib.load(MULTICLASS_RF_PATH)
+    rf_eval = evaluate_multiclass_single_model(
+        "random_forest", rf_model, X_test_unscaled, y_test, class_names, _get_train_time("random_forest")
+    )
+
+    # 3. Evaluate XGBoost (unscaled)
+    logger.info("Evaluating Multiclass XGBoost on X_test_unscaled...")
+    xgb_model = joblib.load(MULTICLASS_XGB_PATH)
+    xgb_eval = evaluate_multiclass_single_model(
+        "xgboost", xgb_model, X_test_unscaled, y_test, class_names, _get_train_time("xgboost")
+    )
+
+    models_data = {
+        "logistic_regression": lr_eval,
+        "random_forest": rf_eval,
+        "xgboost": xgb_eval,
+    }
+
+    # Model selection
+    best_name, selection_meta = select_best_multiclass_model(models_data, class_names)
+    logger.info("Selected superior multiclass model: %s", best_name)
+
+    # Persist best model
+    best_model_obj = {"logistic_regression": lr_model, "random_forest": rf_model, "xgboost": xgb_model}[best_name]
+    joblib.dump(best_model_obj, MULTICLASS_BEST_MODEL_PATH)
+    joblib.dump(best_model_obj, MULTI_CLF_PATH)
+    logger.info("Persisted best model -> %s and %s", MULTICLASS_BEST_MODEL_PATH, MULTI_CLF_PATH)
+
+    # Generate confusion matrix figures
+    fig_model_map = {
+        "logistic_regression": (lr_eval, "Logistic Regression — Multiclass Confusion Matrix",
+                                 FIGURES_DIR / "multiclass_confusion_matrix_logistic_regression.png"),
+        "random_forest": (rf_eval, "Random Forest — Multiclass Confusion Matrix",
+                          FIGURES_DIR / "multiclass_confusion_matrix_random_forest.png"),
+        "xgboost": (xgb_eval, "XGBoost — Multiclass Confusion Matrix",
+                    FIGURES_DIR / "multiclass_confusion_matrix_xgboost.png"),
+    }
+    cm_paths = {}
+    for key, (eval_data, title, path) in fig_model_map.items():
+        cm_paths[key] = save_multiclass_confusion_matrix(
+            np.array(eval_data["confusion_matrix"]), class_names, title, path
+        )
+        logger.info("Saved confusion matrix -> %s", path)
+
+    comp_chart_path = save_multiclass_comparison_chart(
+        models_data, FIGURES_DIR / "multiclass_model_comparison.png"
+    )
+    per_class_f1_path = save_multiclass_per_class_f1_chart(
+        models_data, class_names, FIGURES_DIR / "multiclass_per_class_f1.png"
+    )
+    logger.info("Saved comparison and per-class F1 charts.")
+
+    # Build serializable results (strip raw prediction arrays)
+    clean_results: Dict[str, Any] = {}
+    csv_rows = []
+    for key, data in models_data.items():
+        m = data["metrics"]
+        clean_results[key] = {
+            "model_name": data["model_name"],
+            "training_time_sec": data["training_time_sec"],
+            "inference_time_sec": data["inference_time_sec"],
+            "per_sample_latency_us": data["per_sample_latency_us"],
+            "metrics": m,
+            "per_class_metrics": data["per_class_metrics"],
+            "confusion_matrix": data["confusion_matrix"],
+        }
+        csv_row = {"model": key}
+        csv_row.update({k: (v if v is not None else "") for k, v in m.items()})
+        csv_row["training_time_sec"] = data["training_time_sec"]
+        csv_row["inference_time_sec"] = data["inference_time_sec"]
+        csv_row["per_sample_latency_us"] = data["per_sample_latency_us"]
+        # rare-class columns
+        for cls in RARE_CLASSES:
+            pc = data["per_class_metrics"].get(cls, {})
+            csv_row[f"{cls}_precision"] = pc.get("precision", "")
+            csv_row[f"{cls}_recall"] = pc.get("recall", "")
+            csv_row[f"{cls}_f1"] = pc.get("f1", "")
+        csv_rows.append(csv_row)
+
+    # Save CSV
+    df_comparison = pd.DataFrame(csv_rows)
+    METRICS_DIR.mkdir(parents=True, exist_ok=True)
+    df_comparison.to_csv(MULTICLASS_COMPARISON_CSV, index=False)
+    logger.info("Saved comparison CSV -> %s", MULTICLASS_COMPARISON_CSV)
+
+    # Save full results JSON
+    full_output = {
+        "task": "multiclass_classification",
+        "evaluation_timestamp": pd.Timestamp.now().isoformat(),
+        "test_records_count": int(len(y_test)),
+        "class_names": class_names,
+        "models": clean_results,
+        "selection": selection_meta,
+        "figures": [
+            str(v) for v in list(cm_paths.values()) + [comp_chart_path, per_class_f1_path]
+        ],
+    }
+    with open(MULTICLASS_RESULTS_JSON, "w", encoding="utf-8") as f:
+        json.dump(full_output, f, indent=2)
+    logger.info("Saved multiclass results JSON -> %s", MULTICLASS_RESULTS_JSON)
+
+    # Save best model JSON
+    with open(MULTICLASS_BEST_MODEL_JSON, "w", encoding="utf-8") as f:
+        json.dump(selection_meta, f, indent=2)
+    logger.info("Saved multiclass best model metadata -> %s", MULTICLASS_BEST_MODEL_JSON)
+
+    return full_output
+
+
 # ─── Backward compatibility wrappers ─────────────────────────────────────────
 
 def evaluate_binary(
@@ -485,9 +920,9 @@ def evaluate_multiclass(
     y_test: np.ndarray,
     label_names: Optional[List[str]] = None,
 ) -> Dict[str, Any]:
-    """Placeholder for multiclass evaluation phase."""
-    logger.info("evaluate_multiclass called (scheduled for multiclass phase).")
-    return {}
+    """Backward-compatible single-model multiclass evaluator."""
+    class_names = label_names or [str(i) for i in range(len(np.unique(y_test)))]
+    return evaluate_multiclass_single_model("model", model, X_test, y_test, class_names)
 
 
 # ─── CLI Entrypoint ───────────────────────────────────────────────────────────
@@ -530,8 +965,39 @@ def main() -> None:
         print(f"Selection Rationale   : {sel['selection_criteria']}")
         print(f"Best Model Artifact   : {BINARY_BEST_MODEL_PATH}")
         print("=" * 70 + "\n")
-    else:
-        logger.info("Multiclass evaluation is scheduled for a subsequent phase.")
+
+    if args.task in ("multiclass", "all"):
+        out = evaluate_multiclass_models()
+        sel = out["selection"]
+
+        print("\n" + "=" * 70)
+        print("MULTICLASS MODELS EVALUATION & BENCHMARKING SUMMARY")
+        print("=" * 70)
+        for model_name, info in out["models"].items():
+            m = info["metrics"]
+            print(f"\nModel: {model_name.upper()}")
+            print(f"  Accuracy          : {m['accuracy']:.4f}")
+            print(f"  Balanced Accuracy : {m['balanced_accuracy']:.4f}")
+            print(f"  Macro Precision   : {m['macro_precision']:.4f}")
+            print(f"  Macro Recall      : {m['macro_recall']:.4f}")
+            print(f"  Macro F1          : {m['macro_f1']:.4f}")
+            print(f"  Weighted F1       : {m['weighted_f1']:.4f}")
+            auc_str = f"{m['roc_auc_ovr_macro']:.4f}" if m.get('roc_auc_ovr_macro') is not None else "N/A"
+            ll_str = f"{m['log_loss']:.4f}" if m.get('log_loss') is not None else "N/A"
+            print(f"  ROC-AUC (OvR)     : {auc_str}")
+            print(f"  Log Loss          : {ll_str}")
+            print(f"  Training Time     : {info['training_time_sec']:.2f}s")
+            print(f"  Inference Latency : {info['per_sample_latency_us']:.2f} µs/sample")
+            print(f"  Rare-Class Recall:")
+            for cls in ["Analysis", "Backdoor", "Shellcode", "Worms"]:
+                pc = info.get("per_class_metrics", {}).get(cls, {})
+                print(f"    {cls:<18}: recall={pc.get('recall', 0):.4f}  f1={pc.get('f1', 0):.4f}")
+
+        print("\n" + "-" * 70)
+        print(f"SELECTED SUPERIOR MODEL: {sel['selected_model'].upper()}")
+        print(f"Selection Rationale   : {sel['selection_criteria']}")
+        print(f"Best Model Artifact   : {MULTICLASS_BEST_MODEL_PATH}")
+        print("=" * 70 + "\n")
 
 
 if __name__ == "__main__":
