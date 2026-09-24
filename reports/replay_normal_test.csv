@@ -1,0 +1,6 @@
+event_id,timestamp,prediction,attack_type,binary_probability,binary_threshold,binary_confidence,multiclass_probability,confidence,severity,recommended_action,model_version,record_index
+93ce9624-92ac-427b-8f20-72e362566868,2026-09-21T01:42:27.158568+00:00,Normal,Normal,0.3872,0.8,0.6128,,0.6128,None,Allow traffic / Normal operation,1.0.0,0
+88105531-e982-409e-8ccf-24bb0c8cfdb7,2026-09-21T01:42:27.166648+00:00,Normal,Normal,0.0061,0.8,0.9939,,0.9939,None,Allow traffic / Normal operation,1.0.0,1
+ac33737a-5ece-4283-82bb-8792e79b8d6c,2026-09-21T01:42:27.174015+00:00,Normal,Normal,0.762,0.8,0.238,,0.238,None,Allow traffic / Normal operation,1.0.0,2
+9dc997b8-b34a-41e7-ab93-598e576dc4c2,2026-09-21T01:42:27.180858+00:00,Normal,Normal,0.7461,0.8,0.2539,,0.2539,None,Allow traffic / Normal operation,1.0.0,3
+28b77963-84c4-4ac5-842e-6d9e142c5335,2026-09-21T01:42:27.187778+00:00,Normal,Normal,0.0,0.8,1.0,,1.0,None,Allow traffic / Normal operation,1.0.0,4

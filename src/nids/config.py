@@ -104,6 +104,33 @@ ATTACK_CATEGORIES: list[str] = [
     "Worms",
 ]
 
+# ─── Operational Severity & Action Mappings ──────────────────────────────────
+SEVERITY_MAPPING: dict[str, str] = {
+    "Normal": "None",
+    "Analysis": "Medium",
+    "Reconnaissance": "Medium",
+    "Backdoor": "Critical",
+    "DoS": "Critical",
+    "Exploits": "Critical",
+    "Fuzzers": "High",
+    "Generic": "High",
+    "Shellcode": "Critical",
+    "Worms": "Critical",
+}
+
+RECOMMENDED_ACTIONS: dict[str, str] = {
+    "Normal": "Allow traffic / Normal operation",
+    "Analysis": "Investigate source port scan / port sweeping; monitor host activity",
+    "Reconnaissance": "Block scanner IP; review firewall logs and inspect reconnaissance targets",
+    "Backdoor": "CRITICAL ALERT: Immediately isolate host from network; revoke credentials; conduct forensic memory analysis",
+    "DoS": "CRITICAL ALERT: Activate rate-limiting / anti-DoS ACLs; drop traffic from attacking IP range",
+    "Exploits": "CRITICAL ALERT: Block exploit source IP; inspect targeted vulnerability; verify service patches",
+    "Fuzzers": "Apply protocol sanitization; rate limit offending client; inspect payload anomalies",
+    "Generic": "Enforce strict IPS signature filtering; inspect cryptographic / certificate anomalies",
+    "Shellcode": "CRITICAL ALERT: Immediate host quarantine; terminate suspicious execution threads; memory dump required",
+    "Worms": "CRITICAL ALERT: Network segment isolation; block lateral propagation ports; inspect neighbor nodes",
+}
+
 # ─── Train / test split ───────────────────────────────────────────────────────
 TEST_SIZE: float = 0.20
 RANDOM_STATE: int = 42
